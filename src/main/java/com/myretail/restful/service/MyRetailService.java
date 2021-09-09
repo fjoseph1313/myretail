@@ -57,6 +57,8 @@ public class MyRetailService {
         priceRepository.save(currentPrice);
         log.info("Successfully updated Product with id: {} with new price: value: {} currency_code: {}"
                 , productId, currentPrice.getValue(), currentPrice.getCurrency_code());
+        //improvement. do not return the request object. contract a new object with valid values.
+        //may call GET call again here.
         return productDto;
     }
 

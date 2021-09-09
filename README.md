@@ -29,4 +29,9 @@ Request body: `{
    }`
 
 _Test code coverage report:_ visit `<pathToMyretail>/myretail/target/site/jacoco/index.html`
+
+MyRetail Sequence diagram.
+![MyRetail Sequence diagram](/myRetailSequence.png)
+
+
    

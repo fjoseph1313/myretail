@@ -1,8 +1,7 @@
 package com.myretail.restful.util;
 
-import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
-import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
-import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericToStringSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -15,13 +14,14 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Component
 public class RedisServiceUtil {
     /**
      * This is just a simple hack to let us use embedded Redis standalone cluster without "boostrap" error.
      * since Redis server is initialized after beans creation
      */
-    private JedisConnectionFactory jedisConnectionFactory;
+    private LettuceConnectionFactory lettuceConnectionFactory;
     private RedisTemplate<String, Object> redisTemplate;
 
     private RedisServer redisServer;
@@ -37,14 +37,12 @@ public class RedisServiceUtil {
         redisServer.stop();
     }
 
-    public JedisConnectionFactory jedisConnectionFactory() {
-        if (Objects.isNull(jedisConnectionFactory)) {
-            RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration("localhost", 6379);
-            JedisClientConfiguration jedisClientConfiguration = JedisClientConfiguration.builder().usePooling().build();
-            jedisConnectionFactory = new JedisConnectionFactory(configuration,jedisClientConfiguration);
-            jedisConnectionFactory.afterPropertiesSet();
+    public LettuceConnectionFactory lettuceConnectionFactory() {
+        if (Objects.isNull(lettuceConnectionFactory)) {
+            lettuceConnectionFactory = new LettuceConnectionFactory("localhost", 6379);
+            lettuceConnectionFactory.afterPropertiesSet();
         }
-        return jedisConnectionFactory;
+        return lettuceConnectionFactory;
     }
 
     public RedisTemplate<String, Object> getRedisInstance() {
@@ -56,7 +54,7 @@ public class RedisServiceUtil {
 
     public RedisTemplate<String, Object> redisTemplate() {
         final RedisTemplate<String, Object> template = new RedisTemplate<String, Object>();
-        template.setConnectionFactory(jedisConnectionFactory());
+        template.setConnectionFactory(lettuceConnectionFactory());
         template.setKeySerializer(new StringRedisSerializer());
         template.setHashValueSerializer(new GenericToStringSerializer<Object>(Object.class));
         template.setValueSerializer(new GenericToStringSerializer<Object>(Object.class));
@@ -65,18 +63,30 @@ public class RedisServiceUtil {
     }
 
     public String getValue(final String key) {
-        return (String) this.getRedisInstance().opsForValue().get(key);
+        try {
+            return (String) this.getRedisInstance().opsForValue().get(key);
+        } catch (Exception ex) {
+            log.error("Redis Server/connection was down: {}", ex.getLocalizedMessage());
+            return null;
+        }
     }
 
     /**
      * The TimeToLive could be configurable from properties file
      * Keys will expire in 1 minutes, in this case.
-     * @param key -
+     * IMPROVEMENT: DO NOT HALT THE PROCESS WHEN REDIS ISN'T ONLINE
+     *
+     * @param key   -
      * @param value -
      */
     public void setValue(final String key, final String value) {
-        this.getRedisInstance().opsForValue().set(key, value);
-        this.getRedisInstance().expire(key, 1, TimeUnit.MINUTES);
+        try {
+            this.getRedisInstance().opsForValue().set(key, value);
+            this.getRedisInstance().expire(key, 1, TimeUnit.MINUTES);
+        } catch (Exception ex) {
+            log.error("Redis Server/connection was down: {}", ex.getLocalizedMessage());
+            //Do Nothing.
+        }
     }
 
     public String getProductKey(Long productId) {

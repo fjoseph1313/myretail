@@ -19,6 +19,11 @@ public class MyRetailController {
     @Autowired
     private MyRetailService myRetailService;
 
+    /**
+     * ID should be validated to be a number. or throw Bad Request response with reason.
+     * @param productId
+     * @return
+     */
     @GetMapping(value = "/products/{productId}")
     public ResponseEntity<Object> getProduct(@PathVariable Long productId) {
         try {
